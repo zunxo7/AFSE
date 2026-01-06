@@ -38,21 +38,122 @@ task.spawn(function()
 end)
 
 -------------------------------------------------
--- UI (xan.bar)
+-- UI (Rayfield wrapper)
 -------------------------------------------------
 
-local UI = loadstring(game:HttpGet("https://xan.bar/init.lua"))()
+local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
+
+-- Minimal compatibility wrapper to keep existing code working
+local UI = {}
+UI.Icons = {
+    Aimbot = "rewind",
+    Hubs = "rewind",
+    World = "rewind",
+    Misc = "rewind",
+    Settings = "rewind",
+    Success = "rewind"
+}
+
+function UI.New(opts)
+    local window = Rayfield:CreateWindow({
+        Name = opts.Title or "AFSE",
+        LoadingTitle = opts.Title or "AFSE",
+        LoadingSubtitle = opts.Subtitle or "Smart Auto Training",
+        Theme = "Default",
+        ToggleUIKeybind = "K",
+        ConfigurationSaving = {
+            Enabled = false,
+            FolderName = "AFSE",
+            FileName = "Config"
+        }
+    })
+
+    local wrapper = {}
+    function wrapper:AddTab(name, icon)
+        local tabObj = window:CreateTab(name, icon or "rewind")
+        local tab = {}
+
+        function tab:AddSection(title)
+            tabObj:CreateSection(title)
+        end
+
+        function tab:AddToggle(name, _, callback)
+            return tabObj:CreateToggle({
+                Name = name,
+                CurrentValue = false,
+                Flag = name,
+                Callback = callback
+            })
+        end
+
+        function tab:AddDropdown(name, options, callback, multiple)
+            return tabObj:CreateDropdown({
+                Name = name,
+                Options = options,
+                CurrentOption = { options[1] },
+                MultipleOptions = multiple or false,
+                Flag = name,
+                Callback = callback
+            })
+        end
+
+        function tab:AddSlider(name, data, callback)
+            return tabObj:CreateSlider({
+                Name = name,
+                Range = { data.Min, data.Max },
+                Increment = data.Increment or 1,
+                Suffix = data.Suffix or "",
+                CurrentValue = data.Default or data.Min,
+                Flag = name,
+                Callback = callback
+            })
+        end
+
+        function tab:AddInput(name, callback)
+            return tabObj:CreateInput({
+                Name = name,
+                CurrentValue = "",
+                PlaceholderText = "",
+                RemoveTextAfterFocusLost = true,
+                Callback = callback
+            })
+        end
+
+        return tab
+    end
+
+    function UI.Notify(data)
+        Rayfield:Notify({
+            Title = data.Title or "AFSE",
+            Content = data.Description or data.Content or "",
+            Duration = data.Duration or 3,
+            Image = UI.Icons.Success
+        })
+    end
+
+    function UI.Loading(data)
+        Rayfield:Notify({
+            Title = data.Title or "Loading",
+            Content = data.Subtitle or "",
+            Duration = data.Duration or 3,
+            Image = UI.Icons.Success
+        })
+    end
+
+    UI.IsMobile = false
+    UI.MobileToggle = function() end
+
+    return wrapper
+end
 
 local Window = UI.New({
     Title = "AFSE",
-    Subtitle = "Smart Auto Training",
-    Theme = "Default",
-    Size = UDim2.new(0, 580, 0, 420),
-    ShowUserInfo = true
+    Subtitle = "Smart Auto Training"
 })
 
 local TrainingTab = Window:AddTab("Training", UI.Icons.Aimbot)
 local QuestTab = Window:AddTab("Quests", UI.Icons.Hubs)
+local KillTab = Window:AddTab("Kill", UI.Icons.Hubs)
 local TeleportsTab = Window:AddTab("Teleports", UI.Icons.World)
 local MiscTab = Window:AddTab("Misc", UI.Icons.Misc)
 
@@ -96,11 +197,16 @@ local MiscFlags = {
 
 local QuestFlags = {
     AutoQuest = false,
-    SelectedQuest = "Boom",
-    -- Kill Quest settings (used when quest type is KillPlayer)
+    SelectedQuest = "Boom"
+}
+
+-- Kill settings (separate tab)
+local KillFlags = {
+    Enabled = false,
     PowerThreshold = 50, -- Target players with power below this % of your power
-    FarmDistance = 6, -- How far below target to farm (hardcoded, slider removed)
-    FarmMethod = "Fist" -- Fist or Sword
+    FarmDistance = 6,
+    FarmMethod = "Fist", -- Fist or Sword
+    TargetPriority = { "Lowest Power" }
 }
 
 -- Track currently equipped weapon for kill quest
@@ -350,9 +456,9 @@ local Areas = {
         {Index = 8, Req = 100e9, CFrame = CFrame.new(1855, 146, 92) },
         {Index = 9, Req = 5e12, CFrame = CFrame.new(629, 617, 424) },
         {Index = 10, Req = 250e12, CFrame = CFrame.new(4280, 80, -600) },
-        {Index = 11, Req = 150e15, CFrame = CFrame.new(796, 216, -1004) },
-        {Index = 12, Req = 25e18, CFrame = CFrame.new(3873, 118, 880) },
-        {Index = 13, Req = 10e21, CFrame = CFrame.new(3860, 724, -1185) },
+        {Index = 11, Req = 75e15, CFrame = CFrame.new(796, 216, -1004) },
+        {Index = 12, Req = 2.5e18, CFrame = CFrame.new(3873, 118, 880) },
+        {Index = 13, Req = 1e21, CFrame = CFrame.new(3860, 724, -1185) },
     },
     [2] = { -- Durability
         {Index = 1, Req = 100, CFrame = CFrame.new(72, 83, 880) },
@@ -365,9 +471,9 @@ local Areas = {
         {Index = 8, Req = 100e9, CFrame = CFrame.new(-2754, -231, 352) },
         {Index = 9, Req = 5e12, CFrame = CFrame.new(2176, 454, 575) },
         {Index = 10, Req = 250e12, CFrame = CFrame.new(1664, 500, -1329) },
-        {Index = 11, Req = 150e15, CFrame = CFrame.new(190, 785, -703) },
-        {Index = 12, Req = 25e18, CFrame = CFrame.new(2561, 183, 1558) },
-        {Index = 13, Req = 10e21, CFrame = CFrame.new(1687, 2479, -35) },
+        {Index = 11, Req = 75e15, CFrame = CFrame.new(190, 785, -703) },
+        {Index = 12, Req = 2.5e18, CFrame = CFrame.new(2561, 183, 1558) },
+        {Index = 13, Req = 1e21, CFrame = CFrame.new(1687, 2479, -35) },
     },
     [3] = { -- Chakra
         {Index = 1, Req = 100, CFrame = CFrame.new(-8, 71, -124) },
@@ -380,9 +486,9 @@ local Areas = {
         {Index = 8, Req = 100e9, CFrame = CFrame.new(1496, 486, 1892) },
         {Index = 9, Req = 5e12, CFrame = CFrame.new(-9, 72, -479) },
         {Index = 10, Req = 250e12, CFrame = CFrame.new(-396, 1230, 669) },
-        {Index = 11, Req = 150e15, CFrame = CFrame.new(-742, 2687, 593) },
-        {Index = 12, Req = 25e18, CFrame = CFrame.new(3243, -455, -245) },
-        {Index = 13, Req = 10e21, CFrame = CFrame.new(329, 287, 1893) },
+        {Index = 11, Req = 75e15, CFrame = CFrame.new(-742, 2687, 593) },
+        {Index = 12, Req = 2.5e18, CFrame = CFrame.new(3243, -455, -245) },
+        {Index = 13, Req = 1e21, CFrame = CFrame.new(329, 287, 1893) },
     },
     [5] = { -- Agility
         {Index = 1, Req = 100, CFrame = CFrame.new(42, 86, 451) },
@@ -992,7 +1098,7 @@ end
 local function findKillTargets()
     local targets = {}
     local myPower = getLocalPlayerPower()
-    local threshold = myPower * (QuestFlags.PowerThreshold / 100)
+    local threshold = myPower * (KillFlags.PowerThreshold / 100)
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
@@ -1015,8 +1121,15 @@ local function findKillTargets()
         end
     end
 
-    -- Sort by power (lowest first - easiest targets)
-    table.sort(targets, function(a, b) return a.Power < b.Power end)
+    local hrp = getHRP()
+    if table.find(KillFlags.TargetPriority, "Closest") and hrp then
+        table.sort(targets, function(a, b)
+            return (a.HRP.Position - hrp.Position).Magnitude < (b.HRP.Position - hrp.Position).Magnitude
+        end)
+    else
+        -- Default: sort by power (lowest first - easiest targets)
+        table.sort(targets, function(a, b) return a.Power < b.Power end)
+    end
 
     return targets
 end
@@ -1263,10 +1376,22 @@ task.spawn(function()
                 -- Initial check for GainStat (existing behavior)
                 checkQuestProgressUpdate(quest)
             elseif questType == "KillPlayer" then
-                -- KillPlayer quests are handled by the Kill Quest loop below
-                addDebugLog("KillPlayer quest detected - hunting players...", "INFO")
+                -- Kill quests are not automated here; only completion is checked
+                addDebugLog("KillPlayer quest detected - auto quest only checks completion. Enable Kill tab to farm kills.", "INFO")
             elseif questType == "GainIncrement" then
                 addDebugLog("GainIncrement quest detected - will fire remote to increment", "INFO")
+            end
+        end
+        
+        -- For Kill quests: only check completion, do not auto-fight
+        if CurrentQuestType == "KillPlayer" and CurrentQuest then
+            if checkKillQuestComplete(CurrentQuest) then
+                local questName = QuestNameMap[QuestFlags.SelectedQuest]
+                addDebugLog("Kill quest already complete, turning in: " .. questName, "SUCCESS")
+                completeQuest(questName)
+                ForceQuestRecheck = true
+            else
+                addDebugLog("Kill quest needs manual kills. Use the Kill tab to farm players.", "WARN")
             end
         end
 
@@ -1409,8 +1534,8 @@ task.spawn(function()
         local char = LocalPlayer.Character
         local hrp = getHRP()
         
-        -- Only run when Auto Quest is enabled AND current quest is KillPlayer type
-        if not QuestFlags.AutoQuest or CurrentQuestType ~= "KillPlayer" then
+        -- Run when kill farm toggle is on
+        if not KillFlags.Enabled then
             -- Stop desync loop if running
             if DesyncLoopRunning then
                 DesyncLoopRunning = false
@@ -1458,8 +1583,8 @@ task.spawn(function()
 
         if not hrp or not char then continue end
 
-        -- Check if quest is complete
-        if CurrentQuest and checkKillQuestComplete(CurrentQuest) then
+        -- Check if quest is complete (only if auto quest is on and kill quest is active)
+        if QuestFlags.AutoQuest and CurrentQuest and CurrentQuestType == "KillPlayer" and checkKillQuestComplete(CurrentQuest) then
             -- Stop desync loop
             if DesyncLoopRunning then
                 DesyncLoopRunning = false
@@ -1473,6 +1598,7 @@ task.spawn(function()
             local questName = QuestNameMap[QuestFlags.SelectedQuest]
             addDebugLog("Kill quest complete, turning in: " .. questName, "SUCCESS")
             completeQuest(questName)
+            ForceQuestRecheck = true
             CurrentKillTarget = nil
             CurrentEquippedWeapon = nil
             
@@ -1516,12 +1642,12 @@ task.spawn(function()
             if not LastNoPlayersNotifyTime or (now - LastNoPlayersNotifyTime) > 5 then
                 LastNoPlayersNotifyTime = now
                 UI.Notify({
-                    Title = "Kill Quest",
+                    Title = "Kill",
                     Content = "No players found, searching...",
                     Style = "Default",
                     Duration = 5
                 })
-                addDebugLog("Kill Quest: No valid targets found (threshold: " .. QuestFlags.PowerThreshold .. "%)", "WARN")
+                addDebugLog("Kill: No valid targets found (threshold: " .. KillFlags.PowerThreshold .. "%)", "WARN")
             end
             
             continue
@@ -1537,7 +1663,7 @@ task.spawn(function()
 
         -- Equip weapon based on method (dynamically updated from dropdown)
         -- Keep checking and equipping to ensure it stays equipped
-        equipWeapon(QuestFlags.FarmMethod)
+        equipWeapon(KillFlags.FarmMethod)
 
         -- Cycle through all targets, only moving to next if current is dead
         for i, target in ipairs(targets) do
@@ -1590,7 +1716,7 @@ task.spawn(function()
                 end
                 
                 -- Keep weapon equipped
-                equipWeapon(QuestFlags.FarmMethod)
+                equipWeapon(KillFlags.FarmMethod)
                 
                 -- Update position if target moved
                 if target.HRP and target.HRP.Parent then
@@ -2583,28 +2709,47 @@ QuestTab:AddToggle("Auto Quest", {}, function(v)
 end)
 
 -------------------------------------------------
--- KILL QUEST SETTINGS (for KillPlayer quest type)
+-- KILL TAB (manual kill farming)
 -------------------------------------------------
 
-QuestTab:AddSection("Kill Quest Settings")
+KillTab:AddSection("Kill Farm")
 
-QuestTab:AddSlider("Power Threshold %", {
+KillTab:AddToggle("Kill Farm", {}, function(v)
+    KillFlags.Enabled = v
+    if not v then
+        CurrentKillTarget = nil
+        CurrentEquippedWeapon = nil
+    end
+    addDebugLog("Kill Farm " .. (v and "enabled" or "disabled"), "INFO")
+end)
+
+KillTab:AddSlider("Power Threshold %", {
     Min = 10,
     Max = 100,
-    Default = 50
+    Default = KillFlags.PowerThreshold
 }, function(v)
-    QuestFlags.PowerThreshold = v
+    KillFlags.PowerThreshold = v
     local myPower = getLocalPlayerPower()
     local threshold = myPower * (v / 100)
-    addDebugLog("Kill Quest: Targeting players below " .. formatNumber(threshold) .. " power (" .. v .. "% of yours)", "INFO")
+    addDebugLog("Kill: Targeting players below " .. formatNumber(threshold) .. " power (" .. v .. "% of yours)", "INFO")
 end)
 
-QuestTab:AddDropdown("Farm Method", {"Fist", "Sword"}, function(v)
-    QuestFlags.FarmMethod = v
+KillTab:AddDropdown("Farm Method", {"Fist", "Sword"}, function(v)
+    KillFlags.FarmMethod = v
     -- Reset equipped weapon so it re-equips with new method
     CurrentEquippedWeapon = nil
-    addDebugLog("Kill Quest: Farm method set to " .. v, "INFO")
+    addDebugLog("Kill: Farm method set to " .. v, "INFO")
 end)
+
+KillTab:AddDropdown("Target Priority", {"Lowest Power", "Closest"}, function(selection)
+    if not selection then return end
+    if typeof(selection) == "table" then
+        KillFlags.TargetPriority = selection
+    else
+        KillFlags.TargetPriority = { selection }
+    end
+    addDebugLog("Kill: Target priority set to " .. table.concat(KillFlags.TargetPriority, ", "), "INFO")
+end, true)
 
 -------------------------------------------------
 -- INIT
