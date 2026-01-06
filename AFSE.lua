@@ -97,6 +97,13 @@ function UI.New(opts)
             })
         end
 
+        function tab:AddButton(name, callback)
+            return tabObj:CreateButton({
+                Name = name,
+                Callback = callback
+            })
+        end
+
         function tab:AddSlider(name, data, callback)
             return tabObj:CreateSlider({
                 Name = name,
