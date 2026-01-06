@@ -443,7 +443,7 @@ end
 
 local LAST_AREA = {}
 local TP_DISTANCE = 12
-local TP_RANGE = 200  -- Only teleport if you're REALLY far away (like walked to another area)
+local TP_RANGE = 50  -- Only teleport if you're REALLY far away (like walked to another area)
 local HasInitialTP = {}  -- Track if we've done the initial teleport for each stat
 
 -------------------------------------------------
