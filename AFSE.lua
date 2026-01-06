@@ -43,126 +43,53 @@ end)
 
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
--- Minimal compatibility wrapper to keep existing code working
-local UI = {}
-UI.Icons = {
-    Aimbot = "rewind",
-    Hubs = "rewind",
-    World = "rewind",
-    Misc = "rewind",
-    Settings = "rewind",
-    Success = "rewind"
+local UI = {
+    Icons = {
+        Aimbot = "rewind",
+        Hubs = "rewind",
+        World = "rewind",
+        Misc = "rewind",
+        Settings = "rewind",
+        Success = "rewind"
+    }
 }
 
-function UI.New(opts)
-    local window = Rayfield:CreateWindow({
-        Name = opts.Title or "AFSE",
-        LoadingTitle = opts.Title or "AFSE",
-        LoadingSubtitle = opts.Subtitle or "Smart Auto Training",
-        Theme = "Default",
-        ToggleUIKeybind = "K",
-        ConfigurationSaving = {
-            Enabled = false,
-            FolderName = "AFSE",
-            FileName = "Config"
-        }
+function UI.Notify(data)
+    Rayfield:Notify({
+        Title = data.Title or "AFSE",
+        Content = data.Description or data.Content or "",
+        Duration = data.Duration or 3,
+        Image = UI.Icons.Success
     })
-
-    local wrapper = {}
-    function wrapper:AddTab(name, icon)
-        local tabObj = window:CreateTab(name, icon or "rewind")
-        local tab = {}
-
-        function tab:AddSection(title)
-            tabObj:CreateSection(title)
-        end
-
-        function tab:AddToggle(name, _, callback)
-            return tabObj:CreateToggle({
-                Name = name,
-                CurrentValue = false,
-                Flag = name,
-                Callback = callback
-            })
-        end
-
-        function tab:AddDropdown(name, options, callback, multiple)
-            return tabObj:CreateDropdown({
-                Name = name,
-                Options = options,
-                CurrentOption = { options[1] },
-                MultipleOptions = multiple or false,
-                Flag = name,
-                Callback = callback
-            })
-        end
-
-        function tab:AddButton(name, callback)
-            return tabObj:CreateButton({
-                Name = name,
-                Callback = callback
-            })
-        end
-
-        function tab:AddSlider(name, data, callback)
-            return tabObj:CreateSlider({
-                Name = name,
-                Range = { data.Min, data.Max },
-                Increment = data.Increment or 1,
-                Suffix = data.Suffix or "",
-                CurrentValue = data.Default or data.Min,
-                Flag = name,
-                Callback = callback
-            })
-        end
-
-        function tab:AddInput(name, callback)
-            return tabObj:CreateInput({
-                Name = name,
-                CurrentValue = "",
-                PlaceholderText = "",
-                RemoveTextAfterFocusLost = true,
-                Callback = callback
-            })
-        end
-
-        return tab
-    end
-
-    function UI.Notify(data)
-        Rayfield:Notify({
-            Title = data.Title or "AFSE",
-            Content = data.Description or data.Content or "",
-            Duration = data.Duration or 3,
-            Image = UI.Icons.Success
-        })
-    end
-
-    function UI.Loading(data)
-        Rayfield:Notify({
-            Title = data.Title or "Loading",
-            Content = data.Subtitle or "",
-            Duration = data.Duration or 3,
-            Image = UI.Icons.Success
-        })
-    end
-
-    UI.IsMobile = false
-    UI.MobileToggle = function() end
-
-    return wrapper
 end
 
-local Window = UI.New({
-    Title = "AFSE",
-    Subtitle = "Smart Auto Training"
+function UI.Loading(data)
+    Rayfield:Notify({
+        Title = data.Title or "Loading",
+        Content = data.Subtitle or "",
+        Duration = data.Duration or 3,
+        Image = UI.Icons.Success
+    })
+end
+
+local Window = Rayfield:CreateWindow({
+    Name = "AFSE",
+    LoadingTitle = "AFSE",
+    LoadingSubtitle = "Smart Auto Training",
+    Theme = "Default",
+    ToggleUIKeybind = "K",
+    ConfigurationSaving = {
+        Enabled = false,
+        FolderName = "AFSE",
+        FileName = "Config"
+    }
 })
 
-local TrainingTab = Window:AddTab("Training", UI.Icons.Aimbot)
-local QuestTab = Window:AddTab("Quests", UI.Icons.Hubs)
-local KillTab = Window:AddTab("Kill", UI.Icons.Hubs)
-local TeleportsTab = Window:AddTab("Teleports", UI.Icons.World)
-local MiscTab = Window:AddTab("Misc", UI.Icons.Misc)
+local TrainingTab = Window:CreateTab("Training", UI.Icons.Aimbot)
+local QuestTab = Window:CreateTab("Quests", UI.Icons.Hubs)
+local KillTab = Window:CreateTab("Kill", UI.Icons.Hubs)
+local TeleportsTab = Window:CreateTab("Teleports", UI.Icons.World)
+local MiscTab = Window:CreateTab("Misc", UI.Icons.Misc)
 
 -- Allowed usernames for Debug tab access
 local AllowedDebugUsers = {
@@ -175,7 +102,7 @@ local DebugTab = nil
 local currentUsername = LocalPlayer.Name
 for _, allowedUser in ipairs(AllowedDebugUsers) do
     if currentUsername == allowedUser then
-        DebugTab = Window:AddTab("Debug", UI.Icons.Settings)
+        DebugTab = Window:CreateTab("Debug", UI.Icons.Settings)
         break
     end
 end
@@ -443,7 +370,7 @@ end
 
 local LAST_AREA = {}
 local TP_DISTANCE = 12
-local TP_RANGE = 50  -- Only teleport if you're REALLY far away (like walked to another area)
+local TP_RANGE = 10  -- Only teleport if you're REALLY far away (like walked to another area)
 local HasInitialTP = {}  -- Track if we've done the initial teleport for each stat
 
 -------------------------------------------------
@@ -2139,39 +2066,45 @@ end
 
 -- DEBUG TAB UI (only if DebugTab exists)
 if DebugTab then
-    DebugTab:AddSection("Console")
-    local debugToggle = DebugTab:AddToggle("Show Debug Console", {}, function(v)
-        if not v then
-            DebugFrame.Visible = false
-            return
-        end
-        
-        DebugFrame.Visible = v
-        if v then
-            if DebugLogLabel then
-                local coloredLines = {}
-                for _, log in ipairs(DebugLogs) do
-                    local logTypeMatch = log:match("%[%d+:%d+:%d+%] %[(%w+)%]")
-                    local color = LogColors[logTypeMatch] or LogColors.INFO
-                    table.insert(coloredLines, string.format('<font color="%s">%s</font>', color, log))
-                end
-                DebugLogLabel.Text = table.concat(coloredLines, "\n")
-                task.spawn(function()
-                    task.wait(0.05)
-                    if DebugLogLabel and DebugScrollingFrame then
-                        local labelHeight = DebugLogLabel.AbsoluteSize.Y
-                        DebugScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, labelHeight + 20)
-                        DebugScrollingFrame.CanvasPosition = Vector2.new(0, labelHeight)
-                    end
-                end)
+    DebugTab:CreateSection("Console")
+    local debugToggle = DebugTab:CreateToggle({
+        Name = "Show Debug Console",
+        CurrentValue = false,
+        Callback = function(v)
+            if not v then
+                DebugFrame.Visible = false
+                return
             end
-            addDebugLog("Debug console opened.", "INFO")
+            
+            DebugFrame.Visible = v
+            if v then
+                if DebugLogLabel then
+                    local coloredLines = {}
+                    for _, log in ipairs(DebugLogs) do
+                        local logTypeMatch = log:match("%[%d+:%d+:%d+%] %[(%w+)%]")
+                        local color = LogColors[logTypeMatch] or LogColors.INFO
+                        table.insert(coloredLines, string.format('<font color="%s">%s</font>', color, log))
+                    end
+                    DebugLogLabel.Text = table.concat(coloredLines, "\n")
+                    task.spawn(function()
+                        task.wait(0.05)
+                        if DebugLogLabel and DebugScrollingFrame then
+                            local labelHeight = DebugLogLabel.AbsoluteSize.Y
+                            DebugScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, labelHeight + 20)
+                            DebugScrollingFrame.CanvasPosition = Vector2.new(0, labelHeight)
+                        end
+                    end)
+                end
+                addDebugLog("Debug console opened.", "INFO")
+            end
         end
-    end)
+    })
     DebugToggleRef = debugToggle
-
-    DebugTab:AddSection("Scan")
-    DebugTab:AddButton("Scan World", function()
+    
+    DebugTab:CreateSection("Scan")
+    DebugTab:CreateButton({
+        Name = "Scan World",
+        Callback = function()
         local hrp = getHRP()
         local startCF = hrp.CFrame
 
@@ -2596,7 +2529,7 @@ end
 
 addDebugLog("Debug system initialized.", "INFO")
 
-TrainingTab:AddSection("Auto Train")
+TrainingTab:CreateSection("Auto Train")
 
 -- Store toggle references for auto quest override
 local TrainingToggles = {}
@@ -2605,158 +2538,218 @@ for stat, name in pairs({
     [1]="Strength",[2]="Durability",[3]="Chakra",
     [4]="Sword",[5]="Agility",[6]="Speed"
 }) do
-    local toggle = TrainingTab:AddToggle(name, {}, function(v)
-        -- Don't allow manual toggles when auto quest is active
-        if QuestFlags.AutoQuest then
-            addDebugLog("Auto Quest is active - manual training toggles disabled", "WARN")
-            return
+    local toggle = TrainingTab:CreateToggle({
+        Name = name,
+        CurrentValue = false,
+        Callback = function(v)
+            -- Don't allow manual toggles when auto quest is active
+            if QuestFlags.AutoQuest then
+                addDebugLog("Auto Quest is active - manual training toggles disabled", "WARN")
+                return
+            end
+            Flags[stat] = v
+            if v then
+                tpToBest(stat)
+            end
         end
-        Flags[stat] = v
-        if v then
-            tpToBest(stat)
-        end
-    end)
+    })
     TrainingToggles[stat] = toggle
 end
 
-MiscTab:AddSection("Auto Collect")
-MiscTab:AddToggle("Auto Collect Chikara", {}, function(v)
-    MiscFlags.AutoChikara = v
-end)
+MiscTab:CreateSection("Auto Collect")
+MiscTab:CreateToggle({
+    Name = "Auto Collect Chikara",
+    CurrentValue = false,
+    Callback = function(v)
+        MiscFlags.AutoChikara = v
+    end
+})
 
-MiscTab:AddToggle("Auto Pick Up Fruit", {}, function(v)
-    MiscFlags.AutoPickupFruit = v
-end)
+MiscTab:CreateToggle({
+    Name = "Auto Pick Up Fruit",
+    CurrentValue = false,
+    Callback = function(v)
+        MiscFlags.AutoPickupFruit = v
+    end
+})
 
-MiscTab:AddSection("Auto Skill")
-MiscTab:AddInput("Skill Keys", function(text)
-    -- Parse comma-separated keys like "t,r,q" or "t, r, q"
-    local keys = {}
-    for key in string.gmatch(text, "[^,]+") do
-        key = key:match("^%s*(.-)%s*$") -- Trim whitespace
-        if key and #key > 0 then
-            table.insert(keys, key)
+MiscTab:CreateSection("Auto Skill")
+MiscTab:CreateInput({
+    Name = "Skill Keys",
+    CurrentValue = "",
+    PlaceholderText = "",
+    RemoveTextAfterFocusLost = true,
+    Callback = function(text)
+        -- Parse comma-separated keys like "t,r,q" or "t, r, q"
+        local keys = {}
+        for key in string.gmatch(text, "[^,]+") do
+            key = key:match("^%s*(.-)%s*$") -- Trim whitespace
+            if key and #key > 0 then
+                table.insert(keys, key)
+            end
         end
-    end
-    MiscFlags.AutoSkillKeys = keys
-    if #keys > 0 then
-        addDebugLog("Auto Skill: Keys set to: " .. table.concat(keys, ", "), "INFO")
-    else
-        addDebugLog("Auto Skill: Keys cleared", "INFO")
-    end
-end)
-
-MiscTab:AddToggle("Auto Skill", {}, function(v)
-    MiscFlags.AutoSkillEnabled = v
-    if v then
-        if #MiscFlags.AutoSkillKeys == 0 then
-            addDebugLog("Auto Skill enabled but no keys set! Enter keys above (e.g., t,r,q)", "WARN")
+        MiscFlags.AutoSkillKeys = keys
+        if #keys > 0 then
+            addDebugLog("Auto Skill: Keys set to: " .. table.concat(keys, ", "), "INFO")
         else
-            addDebugLog("Auto Skill enabled - spamming keys: " .. table.concat(MiscFlags.AutoSkillKeys, ", "), "INFO")
+            addDebugLog("Auto Skill: Keys cleared", "INFO")
         end
-    else
-        addDebugLog("Auto Skill disabled", "INFO")
     end
-end)
+})
 
-QuestTab:AddSection("Auto Quest (GainStat / GainIncrement)")
-QuestTab:AddDropdown("Quest NPC", QuestDropdownOptions, function(v)
-    addDebugLog("Dropdown callback fired with value: " .. tostring(v), "INFO")
-    if v ~= QuestFlags.SelectedQuest then
-        addDebugLog("Quest selection changed from " .. tostring(QuestFlags.SelectedQuest) .. " to " .. tostring(v), "INFO")
-        QuestFlags.SelectedQuest = v
-        -- Reset current quest when selection changes
-        cleanupQuestConnections()
-        CurrentQuest = nil
-        CurrentQuestType = nil
-        -- Disable all auto-quest enabled stats when switching quests
-        for stat, _ in pairs(AutoQuestEnabledStats) do
-            if Flags[stat] then
+MiscTab:CreateToggle({
+    Name = "Auto Skill",
+    CurrentValue = false,
+    Callback = function(v)
+        MiscFlags.AutoSkillEnabled = v
+        if v then
+            if #MiscFlags.AutoSkillKeys == 0 then
+                addDebugLog("Auto Skill enabled but no keys set! Enter keys above (e.g., t,r,q)", "WARN")
+            else
+                addDebugLog("Auto Skill enabled - spamming keys: " .. table.concat(MiscFlags.AutoSkillKeys, ", "), "INFO")
+            end
+        else
+            addDebugLog("Auto Skill disabled", "INFO")
+        end
+    end
+})
+
+QuestTab:CreateSection("Auto Quest (GainStat / GainIncrement)")
+QuestTab:CreateDropdown({
+    Name = "Quest NPC",
+    Options = QuestDropdownOptions,
+    CurrentOption = { QuestFlags.SelectedQuest or QuestDropdownOptions[1] },
+    MultipleOptions = false,
+    Callback = function(v)
+        addDebugLog("Dropdown callback fired with value: " .. tostring(v), "INFO")
+        -- Rayfield dropdown returns table for single-select
+        local selection = v
+        if type(selection) == "table" then
+            selection = selection[1]
+        end
+        if selection ~= QuestFlags.SelectedQuest then
+            addDebugLog("Quest selection changed from " .. tostring(QuestFlags.SelectedQuest) .. " to " .. tostring(selection), "INFO")
+            QuestFlags.SelectedQuest = selection
+            -- Reset current quest when selection changes
+            cleanupQuestConnections()
+            CurrentQuest = nil
+            CurrentQuestType = nil
+            -- Disable all auto-quest enabled stats when switching quests
+            for stat, _ in pairs(AutoQuestEnabledStats) do
+                if Flags[stat] then
+                    Flags[stat] = false
+                end
+                AutoQuestEnabledStats[stat] = nil
+            end
+            addDebugLog("Quest selection changed to: " .. tostring(selection) .. " (Previous quest cleared)", "INFO")
+            -- Force immediate re-check
+            ForceQuestRecheck = true
+        else
+            addDebugLog("Dropdown value same as current: " .. tostring(selection), "INFO")
+        end
+    end
+})
+
+QuestTab:CreateToggle({
+    Name = "Auto Quest",
+    CurrentValue = false,
+    Callback = function(v)
+        QuestFlags.AutoQuest = v
+        if v then
+            -- Store original state and disable all manual training
+            for stat = 1, 6 do
+                OriginalFlagsState[stat] = Flags[stat]
                 Flags[stat] = false
             end
-            AutoQuestEnabledStats[stat] = nil
-        end
-        addDebugLog("Quest selection changed to: " .. v .. " (Previous quest cleared)", "INFO")
-        -- Force immediate re-check
-        ForceQuestRecheck = true
-    else
-        addDebugLog("Dropdown value same as current: " .. tostring(v), "INFO")
-    end
-end)
-
-QuestTab:AddToggle("Auto Quest", {}, function(v)
-    QuestFlags.AutoQuest = v
-    if v then
-        -- Store original state and disable all manual training
-        for stat = 1, 6 do
-            OriginalFlagsState[stat] = Flags[stat]
-            Flags[stat] = false
-        end
-        addDebugLog("Auto Quest enabled for: " .. QuestFlags.SelectedQuest .. " - Manual training disabled", "INFO")
-    else
-        -- Unequip weapon if one is equipped
-        if CurrentEquippedWeapon then
-            unequipWeapon()
-        end
-        
-        -- Restore original state and disable all auto-quest enabled stats
-        for stat, _ in pairs(AutoQuestEnabledStats) do
-            Flags[stat] = false
-            AutoQuestEnabledStats[stat] = nil
-        end
-        -- Restore original Flags state
-        for stat = 1, 6 do
-            if OriginalFlagsState[stat] ~= nil then
-                Flags[stat] = OriginalFlagsState[stat]
+            addDebugLog("Auto Quest enabled for: " .. QuestFlags.SelectedQuest .. " - Manual training disabled", "INFO")
+        else
+            -- Unequip weapon if one is equipped
+            if CurrentEquippedWeapon then
+                unequipWeapon()
             end
+            
+            -- Restore original state and disable all auto-quest enabled stats
+            for stat, _ in pairs(AutoQuestEnabledStats) do
+                Flags[stat] = false
+                AutoQuestEnabledStats[stat] = nil
+            end
+            -- Restore original Flags state
+            for stat = 1, 6 do
+                if OriginalFlagsState[stat] ~= nil then
+                    Flags[stat] = OriginalFlagsState[stat]
+                end
+            end
+            OriginalFlagsState = {}
+            addDebugLog("Auto Quest disabled - Manual training restored", "INFO")
         end
-        OriginalFlagsState = {}
-        addDebugLog("Auto Quest disabled - Manual training restored", "INFO")
     end
-end)
+})
 
 -------------------------------------------------
 -- KILL TAB (manual kill farming)
 -------------------------------------------------
 
-KillTab:AddSection("Kill Farm")
+KillTab:CreateSection("Kill Farm")
 
-KillTab:AddToggle("Kill Farm", {}, function(v)
-    KillFlags.Enabled = v
-    if not v then
-        CurrentKillTarget = nil
+KillTab:CreateToggle({
+    Name = "Kill Farm",
+    CurrentValue = false,
+    Callback = function(v)
+        KillFlags.Enabled = v
+        if not v then
+            CurrentKillTarget = nil
+            CurrentEquippedWeapon = nil
+        end
+        addDebugLog("Kill Farm " .. (v and "enabled" or "disabled"), "INFO")
+    end
+})
+
+KillTab:CreateSlider({
+    Name = "Power Threshold %",
+    Range = {10, 100},
+    Increment = 1,
+    Suffix = "%",
+    CurrentValue = KillFlags.PowerThreshold,
+    Callback = function(v)
+        KillFlags.PowerThreshold = v
+        local myPower = getLocalPlayerPower()
+        local threshold = myPower * (v / 100)
+        addDebugLog("Kill: Targeting players below " .. formatNumber(threshold) .. " power (" .. v .. "% of yours)", "INFO")
+    end
+})
+
+KillTab:CreateDropdown({
+    Name = "Farm Method",
+    Options = {"Fist", "Sword"},
+    CurrentOption = { KillFlags.FarmMethod },
+    MultipleOptions = false,
+    Callback = function(v)
+        local selection = v
+        if type(selection) == "table" then
+            selection = selection[1]
+        end
+        KillFlags.FarmMethod = selection
+        -- Reset equipped weapon so it re-equips with new method
         CurrentEquippedWeapon = nil
+        addDebugLog("Kill: Farm method set to " .. tostring(selection), "INFO")
     end
-    addDebugLog("Kill Farm " .. (v and "enabled" or "disabled"), "INFO")
-end)
+})
 
-KillTab:AddSlider("Power Threshold %", {
-    Min = 10,
-    Max = 100,
-    Default = KillFlags.PowerThreshold
-}, function(v)
-    KillFlags.PowerThreshold = v
-    local myPower = getLocalPlayerPower()
-    local threshold = myPower * (v / 100)
-    addDebugLog("Kill: Targeting players below " .. formatNumber(threshold) .. " power (" .. v .. "% of yours)", "INFO")
-end)
-
-KillTab:AddDropdown("Farm Method", {"Fist", "Sword"}, function(v)
-    KillFlags.FarmMethod = v
-    -- Reset equipped weapon so it re-equips with new method
-    CurrentEquippedWeapon = nil
-    addDebugLog("Kill: Farm method set to " .. v, "INFO")
-end)
-
-KillTab:AddDropdown("Target Priority", {"Lowest Power", "Closest"}, function(selection)
-    if not selection then return end
-    if typeof(selection) == "table" then
-        KillFlags.TargetPriority = selection
-    else
-        KillFlags.TargetPriority = { selection }
+KillTab:CreateDropdown({
+    Name = "Target Priority",
+    Options = {"Lowest Power", "Closest"},
+    CurrentOption = KillFlags.TargetPriority,
+    MultipleOptions = true,
+    Callback = function(selection)
+        if not selection then return end
+        if typeof(selection) == "table" then
+            KillFlags.TargetPriority = selection
+        else
+            KillFlags.TargetPriority = { selection }
+        end
+        addDebugLog("Kill: Target priority set to " .. table.concat(KillFlags.TargetPriority, ", "), "INFO")
     end
-    addDebugLog("Kill: Target priority set to " .. table.concat(KillFlags.TargetPriority, ", "), "INFO")
-end, true)
+})
 
 -------------------------------------------------
 -- INIT
@@ -2822,10 +2815,12 @@ end)
 
 -- Create UI buttons from hardcoded Teleports data
 -- Gachas
-TeleportsTab:AddSection("Gachas")
+TeleportsTab:CreateSection("Gachas")
 for _, gacha in ipairs(Teleports.Gachas) do
     local displayName = GachaNameMap[gacha.Name] or gacha.Name
-    TeleportsTab:AddButton(displayName, function()
+    TeleportsTab:CreateButton({
+        Name = displayName,
+        Callback = function()
         local fired = false
         
         -- First try: Fire without teleporting
@@ -2868,13 +2863,16 @@ for _, gacha in ipairs(Teleports.Gachas) do
                 end
             end
         end
-    end)
+        end
+    })
 end
 
 -- Champions
-TeleportsTab:AddSection("Champions")
+TeleportsTab:CreateSection("Champions")
 for _, champion in ipairs(Teleports.Champions) do
-    TeleportsTab:AddButton(champion.Name, function()
+    TeleportsTab:CreateButton({
+        Name = champion.Name,
+        Callback = function()
         local fired = false
         
         -- First try: Fire without teleporting
@@ -2939,13 +2937,16 @@ for _, champion in ipairs(Teleports.Champions) do
                 end
             end
         end
-    end)
+        end
+    })
 end
 
 -- Specials
-TeleportsTab:AddSection("Specials")
+TeleportsTab:CreateSection("Specials")
 for _, special in ipairs(Teleports.Specials) do
-    TeleportsTab:AddButton(special.Name, function()
+    TeleportsTab:CreateButton({
+        Name = special.Name,
+        Callback = function()
         local fired = false
         
         -- First try: Fire without teleporting
@@ -2998,13 +2999,16 @@ for _, special in ipairs(Teleports.Specials) do
                 end
             end
         end
-    end)
+        end
+    })
 end
 
 -- Quests
-TeleportsTab:AddSection("Quests")
+TeleportsTab:CreateSection("Quests")
 for _, quest in ipairs(Teleports.Quests) do
-    TeleportsTab:AddButton(quest.Name, function()
+    TeleportsTab:CreateButton({
+        Name = quest.Name,
+        Callback = function()
         local fired = false
         
         -- First try: Fire without teleporting
@@ -3047,7 +3051,8 @@ for _, quest in ipairs(Teleports.Quests) do
                 end
             end
         end
-    end)
+        end
+    })
 end
 
 -- UI.Corner("AFSE READY", "World scanned. Smart training active.", 5, UI.Icons.Success)
